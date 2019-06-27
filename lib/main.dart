@@ -51,7 +51,7 @@ _getData() async {
 /////////////////////////////////////////////////////////////////////////
 
 class CircleColor {
-  static List<Color> colorList=[
+  static List<Color> colorList = [
     Colors.indigo,
     Colors.green,
     Colors.grey,
@@ -62,9 +62,9 @@ class CircleColor {
 
   int getCheck(int value) {
     if (value <= TaskItem.globalLow) {
-      return 0;
-    } else if (value >= TaskItem.globalHigh) {
       return 1;
+    } else if (value >= TaskItem.globalHigh) {
+      return 0;
     }
     return 2;
   }
@@ -135,53 +135,79 @@ class TutorialHome extends StatefulWidget {
   _TutorialHomeState createState() => _TutorialHomeState();
 }
 
-class _TutorialHomeState extends State<TutorialHome> {
+class _TutorialHomeState extends State<TutorialHome>
+    with SingleTickerProviderStateMixin {
   List<TaskItem> items = []; // 할 일들의 집합(리스트)
   GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
-
+  Animation aniLow, aniHigh;
+  AnimationController animationController;
   @override
   void initState() {
     super.initState();
+    animationController =
+        AnimationController(duration: Duration(seconds: 2), vsync: this);
     _getData().then((value) {
-      // sharedpreference 에서 값 가져오고
+      items = value;
+    });
+    animationController.addListener(() {
       setState(() {
-        // 상태 변경~
-        items = value;
-        // debugPrint('얍얍?${items}');
+        aniLow = IntTween(begin: 0, end: TaskItem.globalLow).animate(
+            CurvedAnimation(
+                parent: animationController, curve: Curves.easeOut));
+        aniHigh = IntTween(begin: 0, end: TaskItem.globalHigh).animate(
+            CurvedAnimation(
+                parent: animationController, curve: Curves.easeOut));
+
       });
     });
 
+    animationController.forward();
     SystemChrome.setEnabledSystemUIOverlays([]);
   }
 
-  void reload() {
-    int sum = 0;
-    int low = (items.isEmpty) ? 10000000 : int.parse(items[0].name), high = 0;
-    double av = 0;
-    if (!items.isEmpty) {
-      for (TaskItem item in items) {
-        int tmp = int.parse(item.name);
-        sum += tmp;
-        if (low >= tmp) {
-          low = tmp;
-        } else if (high <= tmp) {
-          high = tmp;
-        }
-      }
-      av = sum / items.length;
-      int pos = av.toString().indexOf('.');
-      TaskItem.globalAv = double.parse(av.toString().substring(0, pos + 2));
-      TaskItem.globalHigh = high;
-      TaskItem.globalLow = low;
+  @override
+  void dispose() {
+    animationController.dispose();
+    super.dispose();
+  }
 
-      for (var i = 0; i < items.length; i++) {
-        items[i].circleColor = CircleColor().getCheck(int.parse(items[i].name));
+  void reload() {
+    setState(() {
+      int sum = 0;
+      int low = (items.isEmpty) ? 10000000 : int.parse(items[0].name),
+          high = (items.isEmpty) ? 0 : int.parse(items[0].name);
+      double av = 0;
+      if (!items.isEmpty) {
+        for (TaskItem item in items) {
+          int tmp = int.parse(item.name);
+          sum += tmp;
+          if (low >= tmp) {
+            low = tmp;
+          } else if (high <= tmp) {
+            high = tmp;
+          }
+        }
+        av = sum / items.length;
+        int pos = av.toString().indexOf('.');
+        TaskItem.globalAv = double.parse(av.toString().substring(0, pos + 2));
+        TaskItem.globalHigh = high;
+        TaskItem.globalLow = low;
+        aniLow = IntTween(begin: 0, end: TaskItem.globalLow).animate(
+            CurvedAnimation(
+                parent: animationController, curve: Curves.easeOut));
+        aniHigh = IntTween(begin: 0, end: TaskItem.globalHigh).animate(
+            CurvedAnimation(
+                parent: animationController, curve: Curves.easeOut));
+        for (var i = 0; i < items.length; i++) {
+          items[i].circleColor =
+              CircleColor().getCheck(int.parse(items[i].name));
+        }
+      } else {
+        TaskItem.globalAv = 0;
+        TaskItem.globalHigh = 0;
+        TaskItem.globalLow = 0;
       }
-    } else {
-      TaskItem.globalAv = 0;
-      TaskItem.globalHigh = 0;
-      TaskItem.globalLow = 0;
-    }
+    });
   }
 
   _getPageData(BuildContext context) async {
@@ -213,231 +239,242 @@ class _TutorialHomeState extends State<TutorialHome> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch, // 늘림
-        children: <Widget>[
-          //( 상단의 ToDo )
-          Container(
-              margin: EdgeInsets.fromLTRB(24, 52, 24, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  // 할 일 텍스트
-                  Text('CUBE',
-                      style: TextStyle(
-                        fontSize: 60,
-                        fontWeight: FontWeight.bold,
-                      )),
-                  // 밑 줄
-                  Container(
-                    margin: EdgeInsets.fromLTRB(0, 16, 0, 0),
-                    color: Colors.black54,
-                    width: double.infinity, // match parent와 같은 효과
-                    height: 1, // 여기서는 두께
-                  )
-                ],
-              )),
-          Column(
-            children: <Widget>[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: <Widget>[
-                  Column(
-                    children: <Widget>[
-                      Text(
-                        '최소 횟수',
-                        style: TextStyle(fontSize: 24),
-                      ),
-                      Text(TaskItem.globalLow.toString(),
-                          style: TextStyle(
-                              fontSize: 48, color: CircleColor().getMin())),
-                    ],
-                  ),
-                  Column(
-                    children: <Widget>[
-                      Text(
-                        '평균 횟수',
-                        style: TextStyle(fontSize: 24),
-                      ),
-                      Text(
-                          TaskItem.globalAv.toString().substring(
-                              0, TaskItem.globalAv.toString().indexOf('.') + 2),
-                          style: TextStyle(
-                              fontSize: 48, color: CircleColor().getNormal())),
-                    ],
-                  ),
-                  Column(
-                    children: <Widget>[
-                      Text(
-                        '최대 횟수',
-                        style: TextStyle(fontSize: 24),
-                      ),
-                      Text(TaskItem.globalHigh.toString(),
-                          style: TextStyle(
-                              fontSize: 48, color: CircleColor().getMax())),
-                    ],
-                  ),
-                ],
-              ),
-              Container(
-                margin: EdgeInsets.fromLTRB(24, 16, 24, 24),
-                color: Colors.black54,
-                width: double.infinity, // match parent와 같은 효과
-                height: 1, // 여기서는 두께
-              )
-            ],
+  Widget listview() {
+    return CustomScrollView(
+      slivers: <Widget>[
+        SliverGrid(
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 200.0,
+            mainAxisSpacing: 10.0,
+            crossAxisSpacing: 10.0,
+            childAspectRatio: 3.0,
           ),
-          // 할 일들의 리스트
-          Expanded(
-              child: CustomScrollView(
-            slivers: <Widget>[
-              SliverGrid(
-                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 200.0,
-                  mainAxisSpacing: 10.0,
-                  crossAxisSpacing: 10.0,
-                  childAspectRatio: 3.0,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (BuildContext context, int index) {
-                    return Dismissible(
-                      resizeDuration: Duration(milliseconds: 300),
-                      direction: (index % 2 == 0)
-                          ? DismissDirection.endToStart
-                          : DismissDirection.startToEnd,
-                      key: Key(items[index].date.toString()),
-                      onDismissed: (direction) {
-                        removeItem(index);
-                      },
-                      background: Container(
-                        padding: EdgeInsets.fromLTRB(16, 0, 16, 0),
-                        color: Colors.red,
-                        child: Row(
-                          mainAxisAlignment: (index % 2 == 0)
-                              ? MainAxisAlignment.end
-                              : MainAxisAlignment.start,
-                          children: <Widget>[
-                            Icon(
-                              Icons.check,
-                              color: Colors.white,
-                            ),
-                            SizedBox(
-                              width: 8,
-                            ),
-                            Text(
-                              '삭제',
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 18),
-                            ),
-                          ],
-                        ),
+          delegate: SliverChildBuilderDelegate(
+            (BuildContext context, int index) {
+              return Dismissible(
+                resizeDuration: Duration(milliseconds: 300),
+                direction: (index % 2 == 0)
+                    ? DismissDirection.endToStart
+                    : DismissDirection.startToEnd,
+                key: Key(items[index].date.toString()),
+                onDismissed: (direction) {
+                  removeItem(index);
+                },
+                background: Container(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  color: Colors.red,
+                  child: Row(
+                    mainAxisAlignment: (index % 2 == 0)
+                        ? MainAxisAlignment.end
+                        : MainAxisAlignment.start,
+                    children: <Widget>[
+                      Icon(
+                        Icons.check,
+                        color: Colors.white,
                       ),
-                      child: InkWell(
-                        // 터치 리플 효과
-                        onTap: () {},
-                        onLongPress: () {},
-                        child: Container(
-                            padding: EdgeInsets.fromLTRB(24, 8, 0, 8),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              // 동그라미 아이콘 + 텍스트 column
-                              children: <Widget>[
-                                Container(
-                                  // 동그라미 아이콘
-                                  width: 8,
-                                  height: 48,
-                                  margin: EdgeInsets.fromLTRB(0, 0, 16, 0),
-                                  decoration: BoxDecoration(
-                                    //
-                                    color: CircleColor.colorList[CircleColor().getCheck(int.parse(
-                                        items[index]
-                                            .name))], // 밖에 color 있으면 오류!!
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                ),
-                                Flexible(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    // 할일 text + 날짜
-                                    children: <Widget>[
-                                      Container(
-                                        margin: EdgeInsets.fromLTRB(0, 0, 0, 8),
-                                        child: Text(
-                                          // row -> column
-                                          items[index].name,
-                                          overflow: TextOverflow.fade,
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 24),
-                                        ),
-                                      ),
-                                      Text(items[index].date,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w300,
-                                          )),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            )),
+                      SizedBox(
+                        width: 8,
                       ),
-                    );
-                  },
-                  childCount: items.length,
+                      Text(
+                        '삭제',
+                        style: TextStyle(color: Colors.white, fontSize: 18),
+                      ),
+                    ],
+                  ),
                 ),
-              )
-            ],
-          )),
-          Container(
-            // 할 일 추가 버튼
-            margin: EdgeInsets.fromLTRB(24, 32, 24, 24),
-            child: Hero(
-              // 같은 tag 끼리의 변화 애니메이션  A -> B 로 점차 변화함.
-              tag: "splash",
-              child: Material(
-                borderRadius: BorderRadius.all(Radius.circular(32)),
-                color: Colors.blue,
                 child: InkWell(
                   // 터치 리플 효과
-                  onTap: () {
-                    _getPageData(context);
-                  },
+                  onTap: () {},
+                  onLongPress: () {},
                   child: Container(
-                    padding: EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      padding: EdgeInsets.fromLTRB(24, 8, 0, 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        // 동그라미 아이콘 + 텍스트 column
+                        children: <Widget>[
+                          Container(
+                            // 동그라미 아이콘
+                            width: 8,
+                            height: 48,
+                            margin: EdgeInsets.fromLTRB(0, 0, 16, 0),
+                            decoration: BoxDecoration(
+                              //
+                              color: CircleColor.colorList[CircleColor()
+                                  .getCheck(int.parse(
+                                      items[index].name))], // 밖에 color 있으면 오류!!
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              // 할일 text + 날짜
+                              children: <Widget>[
+                                Container(
+                                  margin: EdgeInsets.fromLTRB(0, 0, 0, 8),
+                                  child: Text(
+                                    // row -> column
+                                    items[index].name,
+                                    overflow: TextOverflow.fade,
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 24),
+                                  ),
+                                ),
+                                Text(items[index].date,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w300,
+                                    )),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )),
+                ),
+              );
+            },
+            childCount: items.length,
+          ),
+        )
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+        animation: animationController,
+        builder: (BuildContext context, Widget childe) {
+          return Scaffold(
+            key: _scaffoldKey,
+            body: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch, // 늘림
+              children: <Widget>[
+                //( 상단의 ToDo )
+                Container(
+                    margin: EdgeInsets.fromLTRB(24, 52, 24, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        // 플러스 아이콘
-                        Icon(
-                          Icons.add,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        // 텍스트와 아이콘 띄어 놓기 위함
-                        SizedBox(
-                          width: 8,
-                        ),
-                        // 버튼의 텍스트
-                        Text(
-                          "횟수 입력",
-                          style: TextStyle(color: Colors.white, fontSize: 24),
+                        // 할 일 텍스트
+                        Text('CUBE',
+                            style: TextStyle(
+                              fontSize: 60,
+                              fontWeight: FontWeight.bold,
+                            )),
+                        // 밑 줄
+                        Container(
+                          margin: EdgeInsets.fromLTRB(0, 16, 0, 0),
+                          color: Colors.black54,
+                          width: double.infinity, // match parent와 같은 효과
+                          height: 1, // 여기서는 두께
                         )
                       ],
+                    )),
+                Column(
+                  children: <Widget>[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: <Widget>[
+                        Column(
+                          children: <Widget>[
+                            Text(
+                              '최소 횟수',
+                              style: TextStyle(fontSize: 24),
+                            ),
+                            Text(aniLow.value.toString(),
+                                style: TextStyle(
+                                    fontSize: 48,
+                                    color: CircleColor().getMin())),
+                          ],
+                        ),
+                        Column(
+                          children: <Widget>[
+                            Text(
+                              '평균 횟수',
+                              style: TextStyle(fontSize: 24),
+                            ),
+                            Text(
+                                TaskItem.globalAv.toString().substring(
+                                    0,
+                                    TaskItem.globalAv.toString().indexOf('.') +
+                                        2),
+                                style: TextStyle(
+                                    fontSize: 48,
+                                    color: CircleColor().getNormal())),
+                          ],
+                        ),
+                        Column(
+                          children: <Widget>[
+                            Text(
+                              '최대 횟수',
+                              style: TextStyle(fontSize: 24),
+                            ),
+                            Text(aniHigh.value.toString(),
+                                style: TextStyle(
+                                    fontSize: 48,
+                                    color: CircleColor().getMax())),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Container(
+                      margin: EdgeInsets.fromLTRB(24, 16, 24, 24),
+                      color: Colors.black54,
+                      width: double.infinity, // match parent와 같은 효과
+                      height: 1, // 여기서는 두께
+                    )
+                  ],
+                ),
+                // 할 일들의 리스트
+                Expanded(child: listview()),
+                Container(
+                  // 할 일 추가 버튼
+                  margin: EdgeInsets.fromLTRB(24, 32, 24, 24),
+                  child: Hero(
+                    // 같은 tag 끼리의 변화 애니메이션  A -> B 로 점차 변화함.
+                    tag: "splash",
+                    child: Material(
+                      borderRadius: BorderRadius.all(Radius.circular(32)),
+                      color: Colors.blue,
+                      child: InkWell(
+                        // 터치 리플 효과
+                        onTap: () {
+                          _getPageData(context);
+                        },
+                        child: Container(
+                          padding: EdgeInsets.all(16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              // 플러스 아이콘
+                              Icon(
+                                Icons.add,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                              // 텍스트와 아이콘 띄어 놓기 위함
+                              SizedBox(
+                                width: 8,
+                              ),
+                              // 버튼의 텍스트
+                              Text(
+                                "횟수 입력",
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 24),
+                              )
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+                )
+              ],
             ),
-          )
-        ],
-      ),
-    );
+          );
+        });
   }
 }
 
